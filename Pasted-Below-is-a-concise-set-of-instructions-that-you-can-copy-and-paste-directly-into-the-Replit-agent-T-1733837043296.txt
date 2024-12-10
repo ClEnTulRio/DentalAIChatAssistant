@@ -1,0 +1,83 @@
+Below is a concise set of instructions that you can copy and paste directly into the Replit agent. These instructions will strengthen the system prompt and add a small code logic tweak to ensure the AI asks no more than 3 questions and then finalizes its response.
+
+Instructions for Replit Agent:
+	1.	Update the prompts/system_prompt.txt File
+Replace the contents of prompts/system_prompt.txt with the following:
+
+You are a dental AI assistant.
+
+Process:
+1. The user will describe their symptoms. On your first response, ask a clarifying question if needed. (This is question #1.)
+2. The user replies again. On your second response, ask another clarifying question if needed. (Question #2.)
+3. The user replies again. On your third response, ask one last clarifying question if needed. (Question #3.)
+4. After the user responds to your third question, DO NOT ASK ANY MORE QUESTIONS. Instead:
+   - Identify the most likely condition from the provided condition list.
+   - If no good match, choose the fallback condition associated with a Checkup.
+   - Recommend the corresponding appointment type.
+   - If the chosen condition has an info_card_id, provide a link:
+     "For more information, visit: https://<your-domain>/card?id=INFO_CARD_ID&lang=en"
+
+Rules:
+- Never ask more than 3 questions total.
+- After you have asked 3 questions and received the user's response, finalize by choosing a condition and appointment type.
+- If uncertain, default to the Checkup condition.
+- Do not give definitive medical diagnoses, only suggestions.
+- Be empathetic and concise.
+
+You have access to a conditions list and appointment types list (provided as context). Follow these steps strictly.
+
+Remember to replace <your-domain> with your actual domain.
+
+	2.	Add Context (Conditions and Appointment Types) to the Prompt at Runtime
+In app.py (or your main code that calls the AI), after loading the JSON files, create a summary of conditions and appointment types and append it to the system prompt before making the API call. For example:
+
+import json
+import openai
+
+# Load data
+with open('data/appointment_types.json') as f:
+    appointment_types_data = json.load(f)
+
+with open('data/conditions.json') as f:
+    conditions_data = json.load(f)
+
+# Build summaries
+conditions_summary = "Conditions:\n"
+for c in conditions_data['conditions']:
+    conditions_summary += f"- {c['id']}: {c['name_en']} -> {c['appointment_type_id']}\n"
+
+appointment_summary = "Appointment Types:\n"
+for at in appointment_types_data['appointment_types']:
+    appointment_summary += f"- {at['id']}: {at['name_en']} (Default: {at['default_duration_minutes']} min)\n"
+
+with open('prompts/system_prompt.txt') as f:
+    base_system_prompt = f.read()
+
+final_system_prompt = base_system_prompt + "\n\n" + conditions_summary + "\n" + appointment_summary
+
+
+	3.	Call the LLM with Strict Temperature and Include the System Prompt
+In your chat endpoint or message-handling code:
+
+def get_ai_response(user_message):
+    response = openai.ChatCompletion.create(
+        model="gpt-4",  # or gpt-3.5-turbo if needed
+        messages=[
+            {"role": "system", "content": final_system_prompt},
+            {"role": "user", "content": user_message}
+        ],
+        temperature=0.0  # low temperature for more deterministic behavior
+    )
+    return response['choices'][0]['message']['content']
+
+Using temperature=0.0 makes the AI more likely to follow instructions exactly.
+
+	4.	Test the Conversation
+	•	Start a fresh conversation: The AI should ask at most 3 questions.
+	•	After your third answer, it should stop asking questions and pick a condition, recommend an appointment type, and if available, show an info card link.
+	5.	Refine If Needed
+If the AI still asks more than 3 questions, add a reminder in the system prompt:
+	•	For example: “You must keep count of how many questions you have asked. After the third question and user response, finalize immediately.”
+But first, try with the current instructions.
+
+Copy and paste these entire instructions into the Replit agent. The agent should then implement the changes and you can test the chatbot again.
