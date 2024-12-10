@@ -58,21 +58,20 @@ OPENAI_MODEL = "gpt-4o"
 # Initialize OpenAI client
 openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-SYSTEM_PROMPT = """
-You are a dental AI assistant that helps patients identify possible dental issues based on their symptoms.
-Rules:
-- Keep responses under 3 sentences unless follow-up questions are needed
-- Use simple, empathetic language
-- Reference info cards using [InfoCard: CardName] format
-- Never provide definitive diagnoses
-- Be direct and concise
+# Build summaries
+conditions_summary = "Conditions:\n"
+for c in conditions_data['conditions']:
+    conditions_summary += f"- {c['id']}: {c['name_en']} -> {c['appointment_type_id']}\n"
 
-Common situations and responses:
-For tooth pain: Ask about pain type (sharp/dull) and triggers (hot/cold/pressure)
-For bleeding gums: Inquire about brushing habits and last dental visit
-For cosmetic concerns: Ask about specific aesthetic goals
-For emergencies: Emphasize seeking immediate professional care
-"""
+appointment_summary = "Appointment Types:\n"
+for at in appointment_types_data['appointment_types']:
+    appointment_summary += f"- {at['id']}: {at['name_en']} (Default: {at['default_duration_minutes']}min)\n"
+
+# Load system prompt from file
+with open('prompts/system_prompt.txt') as f:
+    base_system_prompt = f.read()
+
+SYSTEM_PROMPT = base_system_prompt + "\n\n" + conditions_summary + "\n" + appointment_summary
 
 def get_chat_history():
     if 'chat_history' not in session:

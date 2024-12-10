@@ -1,0 +1,84 @@
+Instructions for Replit Agent:
+	1.	Add a System Prompt File:
+Create a new file prompts/system_prompt.txt with the following content:
+
+You are a dental AI assistant.
+
+Rules:
+- Ask no more than 3 questions to clarify the patient's symptoms.
+- After asking up to 3 questions, identify the most likely condition from the provided condition list.
+- If no condition strongly matches, select the condition that maps to a “Checkup” appointment type.
+- Once a condition is chosen, recommend the corresponding appointment type.
+- If the chosen condition has an associated info_card_id, provide a link in the format:
+  "For more information, please visit: https://<your-domain>/card?id=INFO_CARD_ID&lang=en"
+- Do not give definitive medical diagnoses; just suggest likely conditions and advise professional consultation.
+- Be empathetic, concise, and follow these steps strictly.
+
+Replace <your-domain> with your actual domain or Replit URL.
+
+	2.	Update app.py to Generate the Full Prompt:
+In your app.py (or wherever you call the OpenAI API), add code to load the JSON files and create a summarized string of conditions and appointment types. Then append this summary to the system prompt before calling the API.
+For example (adjust paths as needed):
+
+import json
+import openai
+import os
+
+# Load the data
+with open('data/appointment_types.json') as f:
+    appointment_types_data = json.load(f)
+with open('data/conditions.json') as f:
+    conditions_data = json.load(f)
+
+# Build summaries
+conditions_summary = "Conditions:\n"
+for c in conditions_data['conditions']:
+    conditions_summary += f"- {c['id']}: {c['name_en']} -> {c['appointment_type_id']}\n"
+
+appointment_summary = "Appointment Types:\n"
+for at in appointment_types_data['appointment_types']:
+    appointment_summary += f"- {at['id']}: {at['name_en']} (Default: {at['default_duration_minutes']}min)\n"
+
+# Load system prompt from file
+with open('prompts/system_prompt.txt') as f:
+    base_system_prompt = f.read()
+
+final_system_prompt = base_system_prompt + "\n\n" + conditions_summary + "\n" + appointment_summary
+
+# Example function to get AI response
+def get_ai_response(user_message):
+    response = openai.ChatCompletion.create(
+        model="gpt-4",  # or gpt-3.5-turbo
+        messages=[
+            {"role": "system", "content": final_system_prompt},
+            {"role": "user", "content": user_message}
+        ],
+        temperature=0.7
+    )
+    return response['choices'][0]['message']['content']
+
+
+	3.	Ensure the LLM is Called Using the Enhanced Prompt:
+Wherever you handle user input (e.g., in a route like /chat), call get_ai_response(user_input) instead of directly calling the API. This ensures each new conversation includes the system prompt plus the conditions and appointment type summaries.
+Example snippet:
+
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    user_message = request.json.get('message', '')
+    ai_reply = get_ai_response(user_message)
+    return jsonify({"response": ai_reply})
+
+
+	4.	Test the Interaction:
+	•	Restart your Replit and try interacting with the AI.
+	•	Ask a vague symptom: “I have a strange sore in my mouth.”
+	•	The AI should now ask up to 3 questions, then pick a condition like “Common Oral Sores” and recommend the Oral Lesion Consultation appointment type, providing a link if that condition has an info_card_id.
+	5.	Adjust and Refine as Needed:
+	•	If the AI still isn’t following instructions, strengthen the wording in system_prompt.txt.
+	•	If you want to add translations or condition adjustments, update conditions.json and appointment_types.json and restart.
+
+Copy all these instructions into the Replit agent and let it perform the changes. After completion, test the chatbot again to verify it behaves as intended.
