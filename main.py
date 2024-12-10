@@ -154,6 +154,37 @@ def home():
     return render_template('index.html')
 
 @app.route('/chat', methods=['POST'])
+def get_finalization_response(patient_summary):
+    """Make a separate API call to get the final recommendation."""
+    finalization_prompt = f"""You have asked 3 questions already. The patient's info is:
+
+{patient_summary}
+
+Now finalize:
+1. Choose the most likely condition (or fallback).
+2. Recommend the appointment type.
+3. If info_card_id exists, provide link.
+4. Say: "It seems like you need ... Here are available times..."
+
+Do not ask questions. Do not do anything else."""
+
+    messages = [
+        {"role": "system", "content": finalization_prompt},
+        {"role": "system", "content": conditions_summary + "\n" + appointment_summary}
+    ]
+
+    response = openai.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=messages,
+        max_tokens=250,
+        temperature=0.0,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    
+    return response.choices[0].message.content
+
 def chat():
     try:
         user_message = request.json.get('message', '').strip()
@@ -162,63 +193,55 @@ def chat():
 
         chat_history = get_chat_history()
         
-        # Prepare messages for OpenAI
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT}
-        ]
-        
-        # Add chat history
-        for msg in chat_history:
-            messages.append({
-                "role": "user" if msg['type'] == 'user' else "assistant",
-                "content": msg['content']
-            })
-            
-        # Update patient summary with new information from user message
+        # Update patient summary with new information
         patient_summary = update_patient_summary(user_message)
         
-        # Add current message
-        messages.append({"role": "user", "content": user_message})
+        # Count questions asked so far
+        questions_asked = count_assistant_questions(chat_history)
         
-        # Add the current patient summary as context
-        messages.append({
-            "role": "system",
-            "content": f"Current known information: {patient_summary}"
-        })
-        
-        # Check how many questions have been asked so far
-        questions_asked = count_assistant_questions(messages)
-        
-        # Add appropriate system message based on question count
-        if questions_asked < 3:
+        # If we've already asked 3 questions, proceed to finalization
+        if questions_asked >= 3:
+            ai_response = get_finalization_response(patient_summary)
+        else:
+            # Normal Q&A phase
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT}
+            ]
+            
+            # Add chat history
+            for msg in chat_history:
+                messages.append({
+                    "role": "user" if msg['type'] == 'user' else "assistant",
+                    "content": msg['content']
+                })
+                
+            # Add current message and context
+            messages.append({"role": "user", "content": user_message})
+            messages.append({
+                "role": "system",
+                "content": f"Current known information: {patient_summary}"
+            })
+            
+            # Add question count context
             remaining_questions = 3 - questions_asked
             messages.append({
                 "role": "system",
-                "content": f"You have asked {questions_asked} questions so far. You may ask {remaining_questions} more question(s). "
-                          f"DO NOT ask about information already provided in the summary above. "
-                          "After your questions are done, you must finalize without asking more questions."
+                "content": f"You have asked {questions_asked} questions so far. "
+                          f"You may ask {remaining_questions} more question(s) if needed."
             })
-        else:
-            messages.append({
-                "role": "system",
-                "content": "You have asked 3 questions total. NOW FINALIZE. Do NOT ask another question. "
-                          "Based on the summary above, pick condition, recommend appointment type, "
-                          "provide info card link if available, and say 'It seems like you need...'. "
-                          "Breaking this rule is not acceptable."
-            })
-
-        # Get response from OpenAI
-        response = openai.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=messages,
-            max_tokens=250,
-            temperature=0.0,  # Using 0.0 for more deterministic behavior
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
-        )
-
-        ai_response = response.choices[0].message.content
+            
+            # Get response from OpenAI
+            response = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=250,
+                temperature=0.0,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            
+            ai_response = response.choices[0].message.content
         
         # Detect any placeholders in the response
         info_cards, models = detect_placeholders(ai_response)

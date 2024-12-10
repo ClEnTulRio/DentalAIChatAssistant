@@ -1,0 +1,120 @@
+It seems we need an even more controlled approach, since the model repeatedly fails to follow the constraints within a continuous conversation. Let’s change the strategy:
+
+New Strategy: Hard Stop and Forced Finalization After 3 Questions
+
+Instead of relying solely on prompt instructions in a continuous conversation, we will:
+	1.	Track the Conversation State in Code:
+	•	After the model has asked 3 questions and the user has answered them, do not allow the model to continue in the same conversation loop.
+	•	Instead, start a new openai.ChatCompletion.create call with a fresh prompt that includes all known patient info and explicitly tells the model: “No more questions—now finalize.”
+	2.	Two-Step Process:
+	•	Step A (Info Gathering):
+Let the model ask questions (up to 3) as before. Track the count and the user’s answers, updating patient_summary.
+	•	Step B (Finalization Call):
+Once the user answers the 3rd question, stop the normal conversation flow. Then make a new API call to the model with a system prompt that includes the patient summary and says something like:
+
+You have already asked 3 questions. The patient’s info is:
+
+{patient_summary}
+
+Now finalize:
+1. Choose the most likely condition (or fallback).
+2. Recommend the appointment type.
+3. If info_card_id exists, provide link.
+4. Say: "It seems like you need ... Here are available times..."
+
+Do not ask questions. Do not do anything else.
+
+
+This is a fresh call with no user message, just a system role message and maybe the original conditions and appointment type lists. Because there’s no user turn anymore, the model can’t revert to asking questions.
+
+Instructions for Replit Agent:
+	1.	Maintain patient_summary and assistant_questions as before.
+	2.	After the User Answers the 3rd Question:
+	•	Don’t continue the same conversation loop.
+	•	Instead, create a new messages list with:
+	•	A system message containing the instructions to finalize.
+	•	Another system message with conditions and appointment_types summary.
+	•	Another system message with patient_summary.
+For example:
+
+# Pseudocode after user answers the 3rd question:
+if assistant_questions == 3:
+    # Build a new messages array for finalization
+    final_messages = []
+    
+    # System prompt for finalization
+    final_messages.append({"role":"system","content":"""
+
+
+
+You have asked 3 questions already. Now finalize.
+
+Known info:
+“”” + patient_summary + “””
+
+Conditions and Appointment Types (restate briefly):
+“”” + conditions_summary + “\n” + appointment_summary + “””
+
+Instructions:
+	•	Pick the most likely condition or fallback.
+	•	Recommend appointment type.
+	•	If info_card_id, provide link.
+	•	Conclude: ‘It seems like you need an appointment for . Here are all available times…’
+
+Do not ask questions now. Just finalize.
+“””})
+
+   # Call the model fresh:
+   response = openai.ChatCompletion.create(
+       model="gpt-4",
+       messages=final_messages,
+       temperature=0.0
+   )
+   
+   final_response = response['choices'][0]['message']['content']
+   # Return this final_response to the user directly.
+
+3. **Ensure No More Dialogue After Finalization:**
+Once you’ve done the finalization call, the assistant’s response should directly give the conclusion. No user input needed. You can then proceed with your booking logic.
+
+4. **Remove Overly Complex Prompts in the Running Conversation:**
+Since we’ll now do a two-phase approach, the initial conversation can be simpler:
+- In the initial system prompt (for the Q&A phase), just say “You may ask up to 3 questions. After 3 questions and user answers, we will finalize.”
+- Once you hit 3 questions, the code stops calling the model in the old conversation flow and starts a fresh call with the finalization prompt.
+
+**Why This Should Work:**
+- By breaking the workflow into two separate API calls:
+- The first call is just for Q&A, no complicated finalization instructions. If it fails, no problem. After 3 questions, we don’t rely on it to finalize in the same chain.
+- The second call starts with a clean slate: just a system prompt telling it to finalize. There’s no user prompt here and no confusion about continuing Q&A.
+
+**Copy-Paste Instructions for Replit Agent:**
+
+1. Modify the code so that after the user answers the 3rd question:
+- Stop the ongoing conversation chain.
+- Construct a new `messages` array with a system prompt containing all known info (patient_summary), conditions, appointment types, and the final instructions.
+- Call the API again with this new `messages` and no user message.
+
+2. Remove the complex incremental instructions from the main system prompt. Keep the Q&A phase simple:
+```txt
+You can ask up to 3 clarifying questions. After that, we will finalize in a separate step.
+
+	3.	The finalization prompt (second API call) will be:
+
+(system)
+You have asked 3 questions and the user answered them. Now finalize:
+- Known info: {patient_summary}
+- Conditions: ...
+- Appointment Types: ...
+
+Instructions:
+- Pick condition (or fallback)
+- Recommend appointment type
+- If info_card_id: provide link
+- Conclude with "It seems like you need an appointment for..."
+
+Do not ask questions. Just finalize now.
+
+
+	4.	Set temperature=0.0 for both calls.
+
+This new approach ensures that once you reach the finalization phase, the model sees a clean, unambiguous instruction and no previous conversational confusion. It can’t revert to asking questions because you’re not continuing the old messages thread, you’re starting fresh with a finalization-only prompt.
