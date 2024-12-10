@@ -153,7 +153,6 @@ def home():
     session['chat_history'] = []
     return render_template('index.html')
 
-@app.route('/chat', methods=['POST'])
 def get_finalization_response(patient_summary):
     """Make a separate API call to get the final recommendation."""
     finalization_prompt = f"""You have asked 3 questions already. The patient's info is:
@@ -185,6 +184,7 @@ Do not ask questions. Do not do anything else."""
     
     return response.choices[0].message.content
 
+@app.route('/chat', methods=['POST'])
 def chat():
     try:
         user_message = request.json.get('message', '').strip()
