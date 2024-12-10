@@ -144,7 +144,10 @@ def chat():
             model=OPENAI_MODEL,
             messages=messages,
             max_tokens=250,
-            temperature=0.0  # Using 0.0 for more deterministic behavior
+            temperature=0.0,  # Using 0.0 for more deterministic behavior
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
         )
 
         ai_response = response.choices[0].message.content

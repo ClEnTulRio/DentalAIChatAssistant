@@ -1,0 +1,81 @@
+It appears the model is still not adhering to the instructions. When the AI repeatedly asks more questions or fails to finalize after the third one, we need to be more explicit and rigid. Let’s try a different approach:
+
+Key Changes:
+	1.	Enforce Question Counting More Explicitly:
+Instead of relying solely on the model’s interpretation, we’ll insert a system message after each user response that explicitly states how many questions have been asked and what to do next.
+	2.	Use a Step-by-Step Scenario in the System Prompt:
+Provide a short example scenario in the system prompt showing how the conversation should proceed. This often helps guide the model’s behavior.
+	3.	Ensure the Model Knows It Must Follow System Messages Over Everything Else:
+Reiterate that system messages have the highest priority.
+	4.	Try Providing a Concrete Example in the System Prompt:
+Show a minimal example conversation within the system prompt so the model understands the pattern.
+	5.	Consider Reducing Creativity Further:
+Temperature is at 0.0, which is good. Also consider top_p=1 and frequency_penalty=0, presence_penalty=0 for maximum compliance.
+
+Instructions for Replit Agent:
+	1.	Update prompts/system_prompt.txt to the following:
+
+You are a dental AI assistant. System messages override all other instructions. Follow them strictly.
+
+Process:
+- You can ask a maximum of 3 questions total to clarify the patient's symptoms.
+- After the patient responds to your 3rd question, you must stop asking questions.
+- At that point, choose the most likely condition, or if unsure, the fallback checkup condition.
+- Recommend the corresponding appointment type.
+- If condition has `info_card_id`, provide the info card link.
+- End with a line like: "It seems like you need an appointment for <appointment type>. Here are all available times..."
+
+Do not ask more than 3 questions in total, no matter what.
+
+Example scenario:
+User: "I have pain in my tooth."
+Assistant (Q1): "Could you tell me how long you’ve had this pain?"
+User: "About 2 days."
+Assistant (Q2): "Is the pain sharp or dull?"
+User: "It’s dull and constant."
+Assistant (Q3): "Does it hurt more when you drink something cold?"
+User: "Yes, cold drinks increase the pain."
+(Now 3 questions asked and answered)
+Assistant (FINAL): "Based on your answers, the likely condition is Dental Caries. Appointment type: Tooth Pain or Discomfort Appointment (30 min). For more info: https://<your-domain>/card?id=IC_DentalCaries&lang=en. It seems like you need an appointment for Tooth Pain or Discomfort. Here are all available times..."
+
+Always follow this pattern:
+- Ask up to 3 questions, then finalize.
+- If the system message instructs you that you've reached the limit, finalize immediately without asking more questions.
+
+
+	2.	Add System Messages in Code After Each User Response:
+After the user responds each time, your code should insert a system message updating the question count. For example:
+
+# Pseudocode after receiving user input:
+assistant_questions = sum(1 for m in messages if m['role'] == 'assistant' and '?' in m['content'])
+
+# If assistant asked fewer than 3 questions:
+if assistant_questions < 3:
+    messages.append({"role":"system","content":f"You have asked {assistant_questions} questions so far. You may ask {3 - assistant_questions} more question(s). After that, finalize."})
+else:
+    # 3 questions asked
+    messages.append({"role":"system","content":"You have asked 3 questions. NOW FINALIZE. Do NOT ask more questions. Choose condition, recommend appointment, give info card link if available, then say: 'It seems like you need...'."})
+
+
+	3.	Call the Model with Low Temperature & No Penalties:
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=messages,
+    temperature=0.0,
+    top_p=1,
+    frequency_penalty=0,
+    presence_penalty=0
+)
+
+
+	4.	Test Again:
+	•	The system prompt now includes an example scenario.
+	•	The code adds system messages after each user reply, clearly stating what to do next.
+	•	The model should no longer repeat infinite questions; after the third user response, the system message forces finalization.
+	5.	If Still Not Working:
+	•	Add even stronger wording: “If you fail to finalize after the third question, you are breaking the rules. You MUST finalize immediately.”
+	•	Consider showing a second example scenario in the prompt.
+	•	As a last resort, you could manually detect the assistant’s next message and, if it contains a question after the third prompt, regenerate the response. But ideally, the above steps suffice.
+
+Copy-Paste These Instructions into the Replit agent to implement the changes.
