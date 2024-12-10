@@ -148,30 +148,70 @@ def home():
     return render_template('index.html')
 
 @app.route('/chat', methods=['POST'])
-@app.route('/chat', methods=['POST'])
 def chat():
     try:
         user_message = request.json.get('message', '').strip()
         if not user_message:
             return jsonify({'error': 'Empty message'}), 400
 
-        # Get chat history and update patient summary
+        # Get or initialize chat history and session state
         chat_history = get_chat_history()
+        questions_asked = session.get('questions_asked', 0)
+        finalization_done = session.get('finalization_done', False)
+        
+        print(f"DEBUG: Current state - questions_asked: {questions_asked}, finalization_done: {finalization_done}")
+        
+        # Update patient summary with new information
         patient_summary = update_patient_summary(user_message)
+        print(f"DEBUG: Updated patient summary: {patient_summary}")
         
-        # Get messages with context
-        messages = get_messages_for_openai()
-        messages.append({"role": "user", "content": user_message})
-        
-        # Get response from OpenAI
-        response = openai.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=messages,
-            max_tokens=250,
-            temperature=0.7  # More natural responses
-        )
-        
-        ai_response = response.choices[0].message.content
+        # If we've already asked 3 questions or finalization is done, always use finalization response
+        if questions_asked >= 3 or finalization_done:
+            print("DEBUG: Entering finalization phase")
+            if not finalization_done:
+                session['finalization_done'] = True
+                print("DEBUG: Marked finalization as done")
+            ai_response = get_finalization_response(patient_summary)
+        else:
+            # Normal Q&A phase
+            print(f"DEBUG: Entering Q&A phase (question {questions_asked + 1}/3)")
+            
+            # Get messages with full context
+            messages = get_messages_for_openai()
+            
+            # Add current user message
+            messages.append({"role": "user", "content": user_message})
+            
+            # Add question count context
+            remaining_questions = 3 - questions_asked
+            messages.append({
+                "role": "system",
+                "content": f"You have asked {questions_asked} questions so far. "
+                          f"You may ask {remaining_questions} more question(s) if needed. "
+                          f"Do not ask about information already provided in the patient summary."
+            })
+            
+            # Get response from OpenAI
+            response = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=250,
+                temperature=0.0,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            # Check if the response contains a question
+            if '?' in ai_response and not session.get('finalization_done', False):
+                session['questions_asked'] = session.get('questions_asked', 0) + 1
+                print(f"DEBUG: Incremented questions_asked to {session['questions_asked']}")
+                
+                # If this was the third question, next response will be finalization
+                if session['questions_asked'] >= 3:
+                    print("DEBUG: Third question asked, next response will be finalization")
         
         # Detect any placeholders in the response
         info_cards, models = detect_placeholders(ai_response)
