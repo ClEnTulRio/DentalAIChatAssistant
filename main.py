@@ -119,14 +119,24 @@ def chat():
         # Add current message
         messages.append({"role": "user", "content": user_message})
         
-        # Check if we've reached the question limit
+        # Check how many questions have been asked so far
         questions_asked = count_assistant_questions(messages)
-        if questions_asked >= 3:
+        
+        # Add appropriate system message based on question count
+        if questions_asked < 3:
+            remaining_questions = 3 - questions_asked
             messages.append({
                 "role": "system",
-                "content": "You have asked 3 questions already. Now you MUST choose the most likely condition, "
-                          "recommend the appointment type, and provide the info card link if available. "
-                          "Do not ask more questions."
+                "content": f"You have asked {questions_asked} questions so far. "
+                          f"You may ask {remaining_questions} more. After that, you must finalize."
+            })
+        else:
+            messages.append({
+                "role": "system",
+                "content": "You have asked 3 questions already. Do NOT ask more questions. "
+                          "Finalize now by choosing a condition, recommending the appointment type, "
+                          "and providing the info card link if available. "
+                          "Then say: 'It seems like you need an appointment for...'"
             })
 
         # Get response from OpenAI

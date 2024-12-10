@@ -1,0 +1,80 @@
+It seems the model is not respecting the count of questions and keeps repeating “Question #1”. To solve this, we need to enforce the question count more explicitly and provide the model with state after each user turn. We can do this by:
+	1.	Introducing a State Variable in Code:
+Keep track of how many questions the assistant has asked so far, and after each assistant message, increment this count if a question is asked. After the user responds for the third time, insert a forced system message before the assistant’s next response instructing it to finalize.
+	2.	Make the Prompt Even More Explicit About Counting:
+Remind the model after each user response how many questions have been asked. For example, after the user’s first response, add a system message: “You have asked 1 question. You may ask 2 more. Remember to finalize after the third user response.” After the second user response: “You have asked 2 questions. You may ask 1 more. Then finalize.” After the third user response: “You have asked 3 questions. Now finalize without asking more questions.”
+	3.	Remove ‘Question #1’ from the prompt instructions:
+The model repeating “Question #1” is not ideal. Instead, just say “Ask no more than 3 questions total.” The numbering may confuse the model. We’ll rely on code-added system messages to track the count.
+
+Instructions for Replit Agent:
+	1.	Modify the System Prompt (prompts/system_prompt.txt):
+Replace the content with:
+
+You are a dental AI assistant.
+
+Instructions:
+- You can ask up to 3 questions total to clarify the patient's symptoms.
+- After the user has answered your 3rd question, you MUST finalize:
+  1. Choose the most likely condition from the conditions list.
+  2. If unsure, choose the fallback checkup condition.
+  3. Recommend the corresponding appointment type.
+  4. If there's an info_card_id, provide the info card link.
+  5. Then say something like: "It seems like you need an appointment for <appointment type>. Here are the available times..."
+
+- Do not ask more than 3 questions total.
+- Do not repeat question counts in your messages unless instructed by a system message.
+- If you receive a system message stating how many questions have been asked, follow it strictly.
+- Be concise and empathetic.
+
+
+	2.	Add Code to Track Question Count and Insert System Messages Dynamically:
+In app.py or your main server file, after each assistant response, check if it contains a question (like detecting a ‘?’). If it does, increment a question_count.
+Example pseudo-code snippet:
+
+# Before calling the AI:
+# messages is a list of conversation turns: [{"role":"system","content":...}, {"role":"user","content":...}, {"role":"assistant","content":...}]
+
+def count_questions_in_assistant_reply(reply):
+    # A simple heuristic: count question marks
+    return reply.count('?')
+
+question_count = sum(count_questions_in_assistant_reply(m['content']) for m in messages if m['role'] == 'assistant')
+
+user_just_replied = (messages[-1]['role'] == 'user')
+
+if user_just_replied:
+    # Check how many questions have been asked so far
+    # If user just replied, we can insert a system message telling the AI how many questions remain or if it must finalize
+    if question_count < 3:
+        # Remind the AI how many questions have been asked and how many remain
+        messages.append({"role":"system","content":f"You have asked {question_count} questions so far. You may ask {3 - question_count} more. After that, you must finalize."})
+    else:
+        # Already asked 3 questions, must finalize now
+        messages.append({"role":"system","content":"You have asked 3 questions already. Do NOT ask more questions. Finalize now by choosing a condition, recommending the appointment type, and providing the info card link if available."})
+
+This ensures that before calling the AI again, a system message is always present reminding the AI of the current state. The AI should now see these state updates and behave accordingly.
+
+	3.	Set Temperature to 0:
+Ensure temperature=0.0 to reduce creative deviations:
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=messages,
+    temperature=0.0
+)
+
+
+	4.	Test the Interaction:
+	•	Start a conversation.
+	•	The AI asks a question. User answers.
+	•	Code inserts a system message: “You have asked 1 question…”
+	•	AI asks second question. User answers.
+	•	Code inserts system message: “You have asked 2 questions…”
+	•	AI asks third question. User answers.
+	•	Code inserts final system message: “You have asked 3 questions already. Finalize now…”
+	•	AI should now finalize without asking more questions.
+	5.	If the AI Still Misbehaves:
+	•	Add even stricter wording in the system prompt and the system messages.
+	•	Remove any ambiguity. For example, in the final system message: “You have asked 3 questions. Now finalize. DO NOT ASK QUESTIONS. DO NOT DELAY. Choose condition, appointment type, give info card link, then say: ‘It seems like you need…’.”
+
+Copy and paste these instructions into the Replit agent so it can implement the code changes and prompt updates accordingly.
