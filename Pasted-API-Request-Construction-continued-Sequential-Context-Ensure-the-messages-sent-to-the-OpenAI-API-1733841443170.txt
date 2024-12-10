@@ -1,0 +1,44 @@
+API Request Construction (continued):
+Sequential Context: Ensure the messages sent to the OpenAI API include a complete sequence of the conversation history. This should have both the questions from the assistant and the answers from the user. Properly formatted log structures help maintain context, such as:
+messages = [{"role": "system", "content": "You're a dental AI assistant."}]
+for entry in chat_history:
+    messages.append({"role": entry["type"], "content": entry["content"]})
+Summarization and Context Use:
+Incremental Context: After each completion, summarize key points agreed upon (pain specifics, tooth identity) and update session state so that finalization steps recognize context clearly.
+Condition-based Finalization: Your logic should check after a few exchanges whether it can construct a final response utilizing the current summary.
+Diagnostic and Logging Enhancements:
+Logs: Add comprehensive logging to see session updates after each function call that changes state or histories. Such logs might point to a failure in state persistence or command sequence.
+Validation and Testing:
+Manual Tests: Manually test your endpoints to confirm state updates correctly between interactions.
+Simulated Inputs: Use simulated inputs to gauge if context preserves through various error handling pathways.
+Code Snippet: Ensuring Updated State
+Here’s a hypothetical example demonstrating how to maintain context and avoid redundancy:
+
+def update_chat_history(user_message, ai_response):
+    session['chat_history'].append({'type': 'user', 'content': user_message})
+    session['chat_history'].append({'type': 'assistant', 'content': ai_response})
+def is_conversation_complete():
+    return count_assistant_questions(session['chat_history']) >= 3
+def process_message(user_message):
+    try:
+        chat_history = get_chat_history()
+        patient_summary = update_patient_summary(user_message)
+        if is_conversation_complete():
+            response = get_finalization_response(patient_summary)
+        else:
+            response = get_ai_response(chat_history)  # Make sure to pass the full history here
+        
+        update_chat_history(user_message, response)
+        return response
+    except Exception as e:
+        logging.error(f"Error handling message: {str(e)}")
+        return "Sorry, an error occurred."
+# Function to get the AI response considering the complete chat history:
+def get_ai_response(chat_history):
+    messages = [{"role": "system", "content": "You're a dental AI assistant."}]
+    for entry in chat_history:
+        messages.append({"role": entry["type"], "content": entry["content"]})
+        
+    ai_response = openai.ChatCompletion.create(model="gpt-4o", messages=messages)
+    return ai_response['choices'][0]['message']['content']
+By ensuring the context is retained and used in subsequent requests, the chatbot will better track information and work towards a conclusive result in line with your intended logic.
