@@ -1,0 +1,99 @@
+It appears the model continues to ignore instructions even after multiple attempts. Let’s adopt a completely separated finalization call approach to ensure compliance. This means you will never rely on the original conversation thread to produce the final answer—once 3 questions are asked and answered, you start a fresh API call with a clean system prompt instructing it to finalize without further questions.
+
+New Approach (Hard Reset After 3 Questions):
+	1.	Two Distinct Phases:
+	•	Phase 1: Information Gathering
+The AI is allowed to ask up to 3 questions. You track these in your code. During this phase, your system prompt can be minimal:
+
+You can ask the user up to 3 questions to clarify their symptoms. After 3 questions have been asked and answered, we will finalize in a separate step.
+Do not finalize during this phase. Just ask questions.
+
+Call the API with this prompt and the conversation messages as usual. If the AI asks more than 3 questions, you stop after the 3rd question’s answer.
+
+	•	Phase 2: Finalization (Separate Call)
+Once the user answers the 3rd question, do not continue the old conversation. Instead, gather:
+	•	The patient_summary of what the user reported.
+	•	The conditions and appointment types summaries.
+Then make a new API call with a fresh messages array containing only one system message:
+
+(system)
+The user has answered 3 questions.
+
+Known patient info:
+{patient_summary}
+
+Conditions and Appointment Types:
+{list all conditions and appointment types briefly}
+
+Now finalize:
+1. Select the most likely condition or fallback.
+2. Recommend the corresponding appointment type.
+3. If info_card_id is available, provide the link.
+4. Conclude with: "It seems like you need an appointment for <appointment type>. Here are available times..."
+
+Do NOT ask any questions now. Just finalize immediately.
+
+
+By using a fresh call with no previous user/assistant messages, the model has no context of the prior Q&A loop—only the given info. It can’t revert to asking questions because the prompt explicitly says finalize now and no user role messages follow.
+
+	2.	Why This Works:
+	•	The AI model will not see previous messages from the Q&A phase. It only sees a single system message telling it to finalize.
+	•	With no user or assistant messages, no confusion or momentum from the previous conversation can cause repeated questions.
+	•	The instructions are crystal clear: the model must finalize now.
+	3.	Implementation Details:
+	•	During Q&A phase (first call): track how many questions asked by counting ? in assistant responses.
+	•	When user answers the 3rd question, stop calling the old chain.
+	•	Construct patient_summary from user answers.
+	•	Make a new API call:
+
+final_messages = [
+  {"role": "system", "content": f"""
+
+
+
+The user has answered 3 questions.
+
+Known patient info:
+{patient_summary}
+
+Conditions and Appointment Types:
+{conditions_summary}
+{appointment_summary}
+
+Now finalize:
+	1.	Pick condition or fallback.
+	2.	Recommend appointment type.
+	3.	If info_card_id, provide link.
+	4.	End with “It seems like you need an appointment for…”
+
+Do NOT ask questions. Just finalize now.
+“””}
+]
+
+ response = openai.ChatCompletion.create(
+   model="gpt-4",
+   messages=final_messages,
+   temperature=0.0
+ )
+ final_response = response.choices[0].message.content
+ ```
+
+	•	Return final_response directly to the user as the final answer.
+
+	4.	No Complex Prompting Needed in Q&A Phase:
+In the Q&A phase prompt, just say:
+
+You can ask up to 3 questions to clarify symptoms. After user answers 3 questions, we will finalize separately. Do not finalize or pick a condition now.
+
+This phase is only for collecting data.
+
+	5.	If the AI Asks Too Many Questions in Q&A Phase:
+If it tries to go beyond 3 questions, your code just doesn’t provide more turns. Once 3 questions are reached and answered, you move to the finalization call and ignore the old thread.
+
+Summary:
+	•	Step 1: On initial user symptom input, start Q&A phase with a simple prompt.
+	•	Step 2: After 3 Q&As, stop. Don’t continue that conversation.
+	•	Step 3: Make a new API call with only a system prompt telling it to finalize given known info. No previous messages included.
+	•	Step 4: The AI must finalize now—no chance to ask more questions.
+
+This fully decouples the finalization from the complicated earlier conversation, ensuring compliance.

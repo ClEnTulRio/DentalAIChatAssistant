@@ -155,28 +155,34 @@ def home():
 
 def get_finalization_response(patient_summary):
     """Make a separate API call to get the final recommendation."""
-    finalization_prompt = f"""You have asked 3 questions already. The patient's info is:
+    # Build a new messages array for finalization
+    final_messages = []
+    
+    # System prompt for finalization
+    final_messages.append({"role": "system", "content": f"""
+The user has answered 3 questions.
 
+Known info:
 {patient_summary}
 
-Now finalize:
-1. Choose the most likely condition (or fallback).
-2. Recommend the appointment type.
-3. If info_card_id exists, provide link.
-4. Say: "It seems like you need ... Here are available times..."
+Conditions and Appointment Types:
+{conditions_summary}
+{appointment_summary}
 
-Do not ask questions. Do not do anything else."""
+Instructions:
+1. Pick the most likely condition or fallback.
+2. Recommend appointment type.
+3. If info_card_id, provide link.
+4. Conclude: 'It seems like you need an appointment for ... Here are all available times...'
 
-    messages = [
-        {"role": "system", "content": finalization_prompt},
-        {"role": "system", "content": conditions_summary + "\n" + appointment_summary}
-    ]
+Do not ask questions now. Just finalize."""})
 
+    # Call the model fresh with no history
     response = openai.chat.completions.create(
         model=OPENAI_MODEL,
-        messages=messages,
-        max_tokens=250,
+        messages=final_messages,
         temperature=0.0,
+        max_tokens=250,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0
