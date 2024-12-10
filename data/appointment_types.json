@@ -1,0 +1,54 @@
+{
+  "appointment_types": [
+    {
+      "id": "AT_Emergency",
+      "name_en": "Emergency Dental Appointment",
+      "default_duration_minutes": 60
+    },
+    {
+      "id": "AT_ToothPain",
+      "name_en": "Tooth Pain or Discomfort Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_GumHealth",
+      "name_en": "Gum Disease Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_OralLesion",
+      "name_en": "Oral Lesion Consultation",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_JawPain",
+      "name_en": "Jaw Pain/TMJ Disorder Consultation",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Restoration",
+      "name_en": "Restoration/Replacement Appointment",
+      "default_duration_minutes": 45
+    },
+    {
+      "id": "AT_OrthoEval",
+      "name_en": "Orthodontic Evaluation",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Pediatric",
+      "name_en": "Pediatric Dental Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Checkup",
+      "name_en": "Dental Checkup Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Cleaning",
+      "name_en": "Professional Cleaning",
+      "default_duration_minutes": 30
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+Below are detailed step-by-step instructions that you can copy and provide to the Replit agent. These instructions will guide the agent in creating and integrating the appointment types, conditions, and optional overrides data structure into your AI chat Repl. The goal is to have a flexible, scalable setup where the AI can recommend appointment types and reference info cards, while allowing future customization by each clinic.
+
+Instructions for Replit Agent:
+	1.	Create Data Directories and Files
+	•	Ensure there is a data/ directory at the root of your project. If it doesn’t exist, create it.
+	•	Inside data/, create the following files:
+	•	appointment_types.json
+	•	conditions.json
+	•	info_cards.json
+	•	clinic_config.json (optional for now, can leave empty or minimal)
+	2.	Populate appointment_types.json
+Insert the following JSON structure as a starting point. We’ll keep durations simple for now, and you can add more appointment types or languages later.
+
+{
+  "appointment_types": [
+    {
+      "id": "AT_Emergency",
+      "name_en": "Emergency Dental Appointment",
+      "default_duration_minutes": 60
+    },
+    {
+      "id": "AT_ToothPain",
+      "name_en": "Tooth Pain or Discomfort Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_GumHealth",
+      "name_en": "Gum Disease Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_OralLesion",
+      "name_en": "Oral Lesion Consultation",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_JawPain",
+      "name_en": "Jaw Pain/TMJ Disorder Consultation",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Restoration",
+      "name_en": "Restoration/Replacement Appointment",
+      "default_duration_minutes": 45
+    },
+    {
+      "id": "AT_OrthoEval",
+      "name_en": "Orthodontic Evaluation",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Pediatric",
+      "name_en": "Pediatric Dental Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Checkup",
+      "name_en": "Dental Checkup Appointment",
+      "default_duration_minutes": 30
+    },
+    {
+      "id": "AT_Cleaning",
+      "name_en": "Professional Cleaning",
+      "default_duration_minutes": 30
+    }
+  ]
+}
+
+
+	3.	Populate conditions.json
+Based on our simplified, generalized conditions:
+
+{
+  "conditions": [
+    // Emergency
+    { "id": "C001", "name_en": "Dental Abscess", "appointment_type_id": "AT_Emergency" },
+    { "id": "C002", "name_en": "Dental Trauma", "appointment_type_id": "AT_Emergency" },
+    { "id": "C003", "name_en": "Severe Toothache", "appointment_type_id": "AT_Emergency" },
+    // If you want "Acute Pericoronitis" as emergency:
+    { "id": "C004", "name_en": "Acute Pericoronitis", "appointment_type_id": "AT_Emergency" },
+
+    // Toothache Evaluation
+    { "id": "C010", "name_en": "Dental Caries", "appointment_type_id": "AT_ToothPain" },
+    { "id": "C011", "name_en": "Pulpitis", "appointment_type_id": "AT_ToothPain" },
+    { "id": "C012", "name_en": "Cracked Tooth", "appointment_type_id": "AT_ToothPain" },
+    { "id": "C013", "name_en": "Tooth Sensitivity", "appointment_type_id": "AT_ToothPain" },
+    { "id": "C014", "name_en": "Periapical Abscess", "appointment_type_id": "AT_ToothPain" },
+
+    // Gum Disease (Gingivitis/Periodontitis can be separate or combined)
+    { "id": "C020", "name_en": "Gum Inflammation (Gingivitis/Periodontitis)", "appointment_type_id": "AT_GumHealth" },
+
+    // Oral Lesion (Combined categories for simplicity)
+    { "id": "C030", "name_en": "Common Oral Sores", "appointment_type_id": "AT_OralLesion" },
+    { "id": "C031", "name_en": "Unusual Oral Lesions", "appointment_type_id": "AT_OralLesion" },
+
+    // Jaw Pain
+    { "id": "C040", "name_en": "Jaw Pain/TMJ Disorder", "appointment_type_id": "AT_JawPain" },
+
+    // Restoration / Replacement
+    { "id": "C050", "name_en": "Structural or Enamel Issues", "appointment_type_id": "AT_Restoration" },
+    { "id": "C051", "name_en": "Broken or Chipped Tooth", "appointment_type_id": "AT_Restoration" },
+
+    // Orthodontic
+    { "id": "C060", "name_en": "Alignment/Eruption Issues", "appointment_type_id": "AT_OrthoEval" },
+
+    // Pediatric
+    { "id": "C070", "name_en": "Pediatric Dental Concerns", "appointment_type_id": "AT_Pediatric" },
+
+    // Checkup (Uncertain)
+    { "id": "C080", "name_en": "Uncertain or Mild Oral Health Concerns", "appointment_type_id": "AT_Checkup" },
+
+    // Cleaning
+    { "id": "C090", "name_en": "Surface Stains or Discoloration", "appointment_type_id": "AT_Cleaning" }
+  ]
+}
+
+	•	If you want to add additional_time_minutes for a specific condition, just add a field like "additional_time_minutes": 15 to that condition.
+
+	4.	info_cards.json
+For now, create a placeholder file. You can populate it later with actual info. Example:
+
+{
+  "info_cards": [
+    {
+      "id": "IC_Pericoronitis",
+      "title_en": "Pericoronitis",
+      "description_en": "Inflammation around a partially erupted tooth...",
+      "common_symptoms_en": ["Pain", "Swelling", "Redness"],
+      "causes_en": ["Bacterial infection", "Debris under gum flap"],
+      "management_en": ["Better hygiene", "Warm saltwater rinse"],
+      "disclaimer_en": "This info is educational only."
+    }
+  ]
+}
+
+	•	Add or remove fields as needed. If a condition in conditions.json references IC_Pericoronitis, ensure it’s present here.
+
+	5.	clinic_config.json (Optional for Now)
+For the moment, create it empty or minimal:
+
+{
+  "appointment_type_overrides": {},
+  "condition_overrides": {}
+}
+
+Later, a dental office could put something like:
+
+{
+  "appointment_type_overrides": {
+    "AT_GumHealth": 40
+  },
+  "condition_overrides": {
+    "C050": 60
+  }
+}
+
+
+	6.	Integrate Into app.py
+	•	Load all these JSON files at startup.
+	•	Write a helper function to determine final duration:
+	•	Start with appointment_types.json duration.
+	•	If conditions.json has additional_time_minutes, add them.
+	•	If clinic_config.json overrides them, apply those overrides last.
+Example snippet:
+
+import json
+
+with open('data/appointment_types.json') as f:
+    appointment_types_data = json.load(f)
+
+with open('data/conditions.json') as f:
+    conditions_data = json.load(f)
+
+with open('data/info_cards.json') as f:
+    info_cards_data = json.load(f)
+
+with open('data/clinic_config.json') as f:
+    clinic_config_data = json.load(f)
+
+# Build a dictionary for quick lookup of appointment types and conditions
+appointment_types_map = {at['id']: at for at in appointment_types_data['appointment_types']}
+conditions_map = {c['id']: c for c in conditions_data['conditions']}
+
+def get_appointment_duration(condition_id):
+    cond = conditions_map[condition_id]
+    at_id = cond['appointment_type_id']
+    base_duration = appointment_types_map[at_id]['default_duration_minutes']
+
+    # Add condition-level extra time if any
+    extra = cond.get('additional_time_minutes', 0)
+    duration = base_duration + extra
+
+    # Apply clinic overrides
+    # Check if appointment type overridden
+    if at_id in clinic_config_data.get('appointment_type_overrides', {}):
+        duration = clinic_config_data['appointment_type_overrides'][at_id]
+    
+    # Check condition overrides
+    if condition_id in clinic_config_data.get('condition_overrides', {}):
+        duration = clinic_config_data['condition_overrides'][condition_id]
+
+    return duration
+
+This function lets you compute final durations anytime.
+
+	7.	Using This in the LLM Workflow
+	•	Once the LLM determines the most likely condition (say C022), your code can:
+	•	Get the appointment type and compute the final duration using get_appointment_duration(C022).
+	•	Provide the patient with the recommended appointment type and estimated duration.
+	•	If conditions.json has an info_card_id for that condition, construct a link to /card?id=... for patient’s reference.
+	8.	Adjusting or Expanding:
+	•	If at any point you need to refine conditions further, just update conditions.json.
+	•	If you want to add translations or more info fields, update the JSON files accordingly.
+	•	The code doesn’t need changes—just reload and the changes are applied.
+
+Summary for Replit Agent:
+	•	Create and populate the JSON files as shown.
+	•	Implement the get_appointment_duration function in app.py.
+	•	Ensure the AI logic that picks a condition reads from conditions.json and appointment_types.json.
+	•	Future clinic customization is done in clinic_config.json.
+	•	This sets the foundation for dynamic appointment duration logic and info card references.

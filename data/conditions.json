@@ -1,0 +1,99 @@
+{
+  "conditions": [
+    {
+      "id": "C001",
+      "name_en": "Dental Abscess",
+      "appointment_type_id": "AT_Emergency"
+    },
+    {
+      "id": "C002",
+      "name_en": "Dental Trauma",
+      "appointment_type_id": "AT_Emergency"
+    },
+    {
+      "id": "C003",
+      "name_en": "Severe Toothache",
+      "appointment_type_id": "AT_Emergency"
+    },
+    {
+      "id": "C004",
+      "name_en": "Acute Pericoronitis",
+      "appointment_type_id": "AT_Emergency"
+    },
+    {
+      "id": "C010",
+      "name_en": "Dental Caries",
+      "appointment_type_id": "AT_ToothPain"
+    },
+    {
+      "id": "C011",
+      "name_en": "Pulpitis",
+      "appointment_type_id": "AT_ToothPain"
+    },
+    {
+      "id": "C012",
+      "name_en": "Cracked Tooth",
+      "appointment_type_id": "AT_ToothPain"
+    },
+    {
+      "id": "C013",
+      "name_en": "Tooth Sensitivity",
+      "appointment_type_id": "AT_ToothPain"
+    },
+    {
+      "id": "C014",
+      "name_en": "Periapical Abscess",
+      "appointment_type_id": "AT_ToothPain"
+    },
+    {
+      "id": "C020",
+      "name_en": "Gum Inflammation (Gingivitis/Periodontitis)",
+      "appointment_type_id": "AT_GumHealth"
+    },
+    {
+      "id": "C030",
+      "name_en": "Common Oral Sores",
+      "appointment_type_id": "AT_OralLesion"
+    },
+    {
+      "id": "C031",
+      "name_en": "Unusual Oral Lesions",
+      "appointment_type_id": "AT_OralLesion"
+    },
+    {
+      "id": "C040",
+      "name_en": "Jaw Pain/TMJ Disorder",
+      "appointment_type_id": "AT_JawPain"
+    },
+    {
+      "id": "C050",
+      "name_en": "Structural or Enamel Issues",
+      "appointment_type_id": "AT_Restoration"
+    },
+    {
+      "id": "C051",
+      "name_en": "Broken or Chipped Tooth",
+      "appointment_type_id": "AT_Restoration"
+    },
+    {
+      "id": "C060",
+      "name_en": "Alignment/Eruption Issues",
+      "appointment_type_id": "AT_OrthoEval"
+    },
+    {
+      "id": "C070",
+      "name_en": "Pediatric Dental Concerns",
+      "appointment_type_id": "AT_Pediatric"
+    },
+    {
+      "id": "C080",
+      "name_en": "Uncertain or Mild Oral Health Concerns",
+      "appointment_type_id": "AT_Checkup"
+    },
+    {
+      "id": "C090",
+      "name_en": "Surface Stains or Discoloration",
+      "appointment_type_id": "AT_Cleaning"
+    }
+  ]
+}

@@ -1,4 +1,46 @@
 import os
+import json
+
+# Load JSON data files
+with open('data/appointment_types.json') as f:
+    appointment_types_data = json.load(f)
+
+with open('data/conditions.json') as f:
+    conditions_data = json.load(f)
+
+with open('data/info_cards.json') as f:
+    info_cards_data = json.load(f)
+
+with open('data/clinic_config.json') as f:
+    clinic_config_data = json.load(f)
+
+# Build dictionaries for quick lookup
+appointment_types_map = {at['id']: at for at in appointment_types_data['appointment_types']}
+conditions_map = {c['id']: c for c in conditions_data['conditions']}
+
+def get_appointment_duration(condition_id):
+    """
+    Calculate the final appointment duration considering condition requirements and clinic overrides.
+    """
+    cond = conditions_map[condition_id]
+    at_id = cond['appointment_type_id']
+    base_duration = appointment_types_map[at_id]['default_duration_minutes']
+
+    # Add condition-level extra time if any
+    extra = cond.get('additional_time_minutes', 0)
+    duration = base_duration + extra
+
+    # Apply clinic overrides
+    # Check if appointment type overridden
+    if at_id in clinic_config_data.get('appointment_type_overrides', {}):
+        duration = clinic_config_data['appointment_type_overrides'][at_id]
+    
+    # Check condition overrides
+    if condition_id in clinic_config_data.get('condition_overrides', {}):
+        duration = clinic_config_data['condition_overrides'][condition_id]
+
+    return duration
+
 import re
 from flask import Flask, render_template, request, jsonify, session
 from openai import OpenAI

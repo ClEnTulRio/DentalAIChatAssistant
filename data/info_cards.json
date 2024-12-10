@@ -1,0 +1,13 @@
+{
+  "info_cards": [
+    {
+      "id": "IC_Pericoronitis",
+      "title_en": "Pericoronitis",
+      "description_en": "Inflammation around a partially erupted tooth...",
+      "common_symptoms_en": ["Pain", "Swelling", "Redness"],
+      "causes_en": ["Bacterial infection", "Debris under gum flap"],
+      "management_en": ["Better hygiene", "Warm saltwater rinse"],
+      "disclaimer_en": "This info is educational only."
+    }
+  ]
+}
