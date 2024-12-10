@@ -74,10 +74,14 @@ with open('prompts/system_prompt.txt') as f:
 SYSTEM_PROMPT = base_system_prompt + "\n\n" + conditions_summary + "\n" + appointment_summary
 
 def get_chat_history():
+    # Initialize all session variables if not present
     if 'chat_history' not in session:
+        session.clear()  # Clear any stale session data
         session['chat_history'] = []
         session['questions_asked'] = 0
         session['patient_summary'] = "No symptoms described yet."
+        session['finalization_done'] = False
+        print("DEBUG: New session initialized with questions_asked =", session['questions_asked'])
     return session['chat_history']
 
 def count_assistant_questions(messages):
@@ -197,19 +201,27 @@ def chat():
         if not user_message:
             return jsonify({'error': 'Empty message'}), 400
 
+        # Get or initialize chat history and session state
         chat_history = get_chat_history()
+        questions_asked = session.get('questions_asked', 0)
+        finalization_done = session.get('finalization_done', False)
+        
+        print(f"DEBUG: Current state - questions_asked: {questions_asked}, finalization_done: {finalization_done}")
         
         # Update patient summary with new information
         patient_summary = update_patient_summary(user_message)
+        print(f"DEBUG: Updated patient summary: {patient_summary}")
         
-        # Count questions asked so far
-        questions_asked = count_assistant_questions(chat_history)
-        
-        # If we've already asked 3 questions, proceed to finalization
-        if questions_asked >= 3:
+        # If we've already asked 3 questions or finalization is done, always use finalization response
+        if questions_asked >= 3 or finalization_done:
+            print("DEBUG: Entering finalization phase")
+            if not finalization_done:
+                session['finalization_done'] = True
+                print("DEBUG: Marked finalization as done")
             ai_response = get_finalization_response(patient_summary)
         else:
             # Normal Q&A phase
+            print(f"DEBUG: Entering Q&A phase (question {questions_asked + 1}/3)")
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT}
             ]
@@ -248,6 +260,15 @@ def chat():
             )
             
             ai_response = response.choices[0].message.content
+            
+            # Check if the response contains a question
+            if '?' in ai_response and not session.get('finalization_done', False):
+                session['questions_asked'] = session.get('questions_asked', 0) + 1
+                print(f"DEBUG: Incremented questions_asked to {session['questions_asked']}")
+                
+                # If this was the third question, next response will be finalization
+                if session['questions_asked'] >= 3:
+                    print("DEBUG: Third question asked, next response will be finalization")
         
         # Detect any placeholders in the response
         info_cards, models = detect_placeholders(ai_response)
@@ -256,11 +277,17 @@ def chat():
         chat_history.append({"type": "user", "content": user_message})
         chat_history.append({"type": "assistant", "content": ai_response})
         session['chat_history'] = chat_history
-
+        
+        print(f"DEBUG: Returning response. questions_asked: {session.get('questions_asked', 0)}, finalization_done: {session.get('finalization_done', False)}")
+        
         return jsonify({
             "response": ai_response,
             "info_cards": info_cards,
-            "models": models
+            "models": models,
+            "debug_info": {
+                "questions_asked": session.get('questions_asked', 0),
+                "finalization_phase": session.get('finalization_done', False)
+            }
         })
 
     except Exception as e:
