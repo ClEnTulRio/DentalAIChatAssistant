@@ -1,0 +1,63 @@
+It appears the model still doesn’t adhere to the constraints. We need an even stricter and clearer set of rules. We will:
+	1.	Stop numbering questions in the prompt. Numbering seems to confuse the model.
+	2.	Use absolute language: “After asking questions 3 times, finalize. DO NOT ask more questions.”
+	3.	Explicitly say it must follow the most recent system message over everything else.
+	4.	Forbid repeating question patterns: If it tries to start questions over, that’s breaking the rules.
+	5.	Final fallback: After the user responds the third time, insert a forced system message that says: “You have asked 3 questions. Finalize now.” The prompt should clearly state that the assistant must follow this system message above all else.
+
+Instructions for Replit Agent:
+	1.	Update prompts/system_prompt.txt with a More Absolute Prompt:
+
+You are a dental AI assistant. You must follow system messages over everything else.
+
+Instructions:
+- You may ask the user up to three (3) clarifying questions total to understand their symptoms better.
+- After you have asked three questions and the user has responded to them, DO NOT ASK MORE QUESTIONS.
+- At that point, you must immediately:
+  1. Select the most likely condition from the conditions list.
+  2. If uncertain, choose the fallback checkup condition.
+  3. Recommend the corresponding appointment type.
+  4. If the condition has an info_card_id, provide the info card link.
+  5. Conclude with a statement like: "It seems like you need an appointment for <appointment type>. Here are all available times..."
+
+You must never exceed 3 questions. If a system message tells you that you have asked 3 questions, you must follow it and finalize immediately without asking more questions.
+
+Do not number or label your questions. Just ask them naturally. After asking any question, wait for the user's answer. Once you've asked three questions in total, finalize as per the instructions above.
+
+If the user asks something irrelevant, you still must follow the rules: after 3 questions, finalize.
+
+
+	2.	Insert System Messages After Each User Reply in Code:
+In your code, after each user response, count how many times the assistant asked a question. Then insert a system message instructing what to do next.
+Example:
+
+assistant_questions = sum(1 for m in messages if m['role'] == 'assistant' and '?' in m['content'])
+
+# If fewer than 3 questions asked
+if assistant_questions < 3:
+    messages.append({"role":"system","content":f"You have asked {assistant_questions} questions so far. You may ask {3 - assistant_questions} more question(s). After that, finalize without asking more questions."})
+else:
+    # 3 questions asked
+    messages.append({"role":"system","content":"You have asked 3 questions total. NOW FINALIZE. Do NOT ask another question. Just pick condition, recommend appointment type, provide info card link, and say 'It seems like you need...'."})
+
+This ensures the model receives a system message every time clarifying how many questions remain or if it must now finalize.
+
+	3.	Use Temperature=0.0 and Add More Constraints:
+Ensure the API call:
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=messages,
+    temperature=0.0,
+    top_p=1,
+    frequency_penalty=0,
+    presence_penalty=0
+)
+
+
+	4.	If The Model Still Disobeys:
+	•	Add even stronger language in the system prompt: “If you fail to finalize after 3 questions, you are breaking the rules.”
+	•	Provide another example scenario in the system prompt.
+	•	For example, add a second example scenario showing what happens if the user is vague and the AI still must finalize after 3 questions.
+
+Copy-Paste These Instructions into the Replit agent. The agent should update the system prompt and code accordingly. Test again. This approach heavily constrains the AI and regularly reminds it via system messages.

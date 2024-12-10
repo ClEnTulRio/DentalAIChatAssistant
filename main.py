@@ -127,16 +127,14 @@ def chat():
             remaining_questions = 3 - questions_asked
             messages.append({
                 "role": "system",
-                "content": f"You have asked {questions_asked} questions so far. "
-                          f"You may ask {remaining_questions} more. After that, you must finalize."
+                "content": f"You have asked {questions_asked} questions so far. You may ask {remaining_questions} more question(s). After that, finalize without asking more questions."
             })
         else:
             messages.append({
                 "role": "system",
-                "content": "You have asked 3 questions already. Do NOT ask more questions. "
-                          "Finalize now by choosing a condition, recommending the appointment type, "
-                          "and providing the info card link if available. "
-                          "Then say: 'It seems like you need an appointment for...'"
+                "content": "You have asked 3 questions total. NOW FINALIZE. Do NOT ask another question. "
+                          "Just pick condition, recommend appointment type, provide info card link, and say "
+                          "'It seems like you need...'. Breaking this rule is not acceptable."
             })
 
         # Get response from OpenAI
