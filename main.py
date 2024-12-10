@@ -76,53 +76,29 @@ SYSTEM_PROMPT = base_system_prompt + "\n\n" + conditions_summary + "\n" + appoin
 def get_chat_history():
     """Get chat history and ensure proper session initialization."""
     if 'chat_history' not in session:
-        session.clear()  # Clear any stale session data
         session['chat_history'] = []
-        session['questions_asked'] = 0
-        session['patient_summary'] = {
-            'symptoms': [],
-            'locations': [],
-            'duration': None,
-            'severity': None
-        }
-        session['finalization_done'] = False
-        print("DEBUG: New session initialized with questions_asked =", session['questions_asked'])
+        session['patient_summary'] = "No symptoms described yet."
     return session['chat_history']
 
 def get_messages_for_openai():
     """Construct messages array for OpenAI with proper context."""
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     
-    # Add chat history with proper role assignments
+    # Add chat history
     for msg in session.get('chat_history', []):
         messages.append({
             "role": "user" if msg['type'] == 'user' else "assistant",
             "content": msg['content']
         })
     
-    # Add current patient summary as context
-    summary = format_patient_summary(session.get('patient_summary', {}))
-    if summary:
+    # Add patient summary if available
+    if session.get('patient_summary'):
         messages.append({
             "role": "system",
-            "content": f"Current patient information:\n{summary}"
+            "content": f"Current patient information: {session['patient_summary']}"
         })
     
     return messages
-
-def format_patient_summary(summary_dict):
-    """Format patient summary into a readable string."""
-    parts = []
-    if summary_dict.get('symptoms'):
-        parts.append(f"Symptoms: {', '.join(summary_dict['symptoms'])}")
-    if summary_dict.get('locations'):
-        parts.append(f"Locations: {', '.join(summary_dict['locations'])}")
-    if summary_dict.get('duration'):
-        parts.append(f"Duration: {summary_dict['duration']}")
-    if summary_dict.get('severity'):
-        parts.append(f"Severity: {summary_dict['severity']}")
-    
-    return "\n".join(parts) if parts else "No symptoms described yet."
 
 def count_assistant_questions(messages):
     """Count how many questions the assistant has asked."""
@@ -130,102 +106,34 @@ def count_assistant_questions(messages):
 
 def update_patient_summary(message):
     """Update the patient summary based on the user's message."""
-    if 'patient_summary' not in session:
-        session['patient_summary'] = {
-            'symptoms': [],
-            'locations': [],
-            'duration': None,
-            'severity': None
-        }
+    current_summary = session.get('patient_summary', "No symptoms described yet.")
     
-    summary = session['patient_summary']
-    message_lower = message.lower()
-    
-    # Symptom keywords and their normalized forms
-    symptoms = {
+    # Simple keyword detection
+    keywords = {
         'pain': 'pain',
         'ache': 'aching',
-        'hurt': 'pain',
-        'sensitive': 'sensitivity',
-        'swollen': 'swelling',
-        'bleeding': 'bleeding',
-        'red': 'redness',
-        'loose': 'loose tooth',
-        'broken': 'broken tooth',
-        'chip': 'chipped tooth',
-        'crack': 'cracked tooth',
-        'sore': 'soreness',
-        'numb': 'numbness',
-        'sharp': 'sharp pain'
-    }
-    
-    # Location keywords and their normalized forms
-    locations = {
         'tooth': 'tooth',
         'teeth': 'teeth',
         'gum': 'gums',
         'jaw': 'jaw',
-        'mouth': 'mouth',
-        'face': 'facial area',
-        'molar': 'molar tooth',
-        'front': 'front teeth',
-        'back': 'back teeth'
+        'mouth': 'mouth'
     }
     
-    # Detect duration
-    duration_patterns = {
-        r'(\d+)\s*(day|days)': lambda x: f"{x[0]} days",
-        r'(\d+)\s*(week|weeks)': lambda x: f"{x[0]} weeks",
-        r'(\d+)\s*(month|months)': lambda x: f"{x[0]} months",
-        'today': "today",
-        'yesterday': "since yesterday",
-        'last week': "since last week",
-        'few days': "a few days"
-    }
+    new_info = []
+    message_lower = message.lower()
     
-    # Detect severity words
-    severity_words = {
-        'mild': 'mild',
-        'moderate': 'moderate',
-        'severe': 'severe',
-        'intense': 'severe',
-        'slight': 'mild',
-        'bad': 'severe',
-        'worst': 'severe'
-    }
-    
-    # Update symptoms
-    for keyword, normalized in symptoms.items():
-        if keyword in message_lower and normalized not in summary['symptoms']:
-            summary['symptoms'].append(normalized)
-    
-    # Update locations
-    for keyword, normalized in locations.items():
-        if keyword in message_lower and normalized not in summary['locations']:
-            summary['locations'].append(normalized)
-    
-    # Update duration if mentioned
-    for pattern, formatter in duration_patterns.items():
-        if isinstance(pattern, str):
-            if pattern in message_lower:
-                summary['duration'] = formatter
-        else:
-            import re
-            match = re.search(pattern, message_lower)
-            if match:
-                summary['duration'] = formatter(match.groups())
-    
-    # Update severity if mentioned
-    for keyword, level in severity_words.items():
+    for keyword, description in keywords.items():
         if keyword in message_lower:
-            summary['severity'] = level
-            break
+            new_info.append(description)
     
-    # Save updated summary
-    session['patient_summary'] = summary
-    print(f"DEBUG: Updated patient summary: {summary}")
+    if new_info:
+        if current_summary == "No symptoms described yet.":
+            current_summary = ""
+        new_summary = f"{current_summary} Reports {', '.join(new_info)}."
+        session['patient_summary'] = new_summary.strip()
+        return new_summary
     
-    return format_patient_summary(summary)
+    return current_summary
 
 def detect_placeholders(text):
     # Detect [InfoCard: Name] and [3DModel: Name] patterns
@@ -277,70 +185,30 @@ Do not ask questions now. Just finalize."""})
     return response.choices[0].message.content
 
 @app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST'])
 def chat():
     try:
         user_message = request.json.get('message', '').strip()
         if not user_message:
             return jsonify({'error': 'Empty message'}), 400
 
-        # Get or initialize chat history and session state
+        # Get chat history and update patient summary
         chat_history = get_chat_history()
-        questions_asked = session.get('questions_asked', 0)
-        finalization_done = session.get('finalization_done', False)
-        
-        print(f"DEBUG: Current state - questions_asked: {questions_asked}, finalization_done: {finalization_done}")
-        
-        # Update patient summary with new information
         patient_summary = update_patient_summary(user_message)
-        print(f"DEBUG: Updated patient summary: {patient_summary}")
         
-        # If we've already asked 3 questions or finalization is done, always use finalization response
-        if questions_asked >= 3 or finalization_done:
-            print("DEBUG: Entering finalization phase")
-            if not finalization_done:
-                session['finalization_done'] = True
-                print("DEBUG: Marked finalization as done")
-            ai_response = get_finalization_response(patient_summary)
-        else:
-            # Normal Q&A phase
-            print(f"DEBUG: Entering Q&A phase (question {questions_asked + 1}/3)")
-            
-            # Get messages with full context
-            messages = get_messages_for_openai()
-            
-            # Add current user message
-            messages.append({"role": "user", "content": user_message})
-            
-            # Add question count context
-            remaining_questions = 3 - questions_asked
-            messages.append({
-                "role": "system",
-                "content": f"You have asked {questions_asked} questions so far. "
-                          f"You may ask {remaining_questions} more question(s) if needed. "
-                          f"Do not ask about information already provided in the patient summary."
-            })
-            
-            # Get response from OpenAI
-            response = openai.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=messages,
-                max_tokens=250,
-                temperature=0.0,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0
-            )
-            
-            ai_response = response.choices[0].message.content
-            
-            # Check if the response contains a question
-            if '?' in ai_response and not session.get('finalization_done', False):
-                session['questions_asked'] = session.get('questions_asked', 0) + 1
-                print(f"DEBUG: Incremented questions_asked to {session['questions_asked']}")
-                
-                # If this was the third question, next response will be finalization
-                if session['questions_asked'] >= 3:
-                    print("DEBUG: Third question asked, next response will be finalization")
+        # Get messages with context
+        messages = get_messages_for_openai()
+        messages.append({"role": "user", "content": user_message})
+        
+        # Get response from OpenAI
+        response = openai.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            max_tokens=250,
+            temperature=0.7  # More natural responses
+        )
+        
+        ai_response = response.choices[0].message.content
         
         # Detect any placeholders in the response
         info_cards, models = detect_placeholders(ai_response)
@@ -350,16 +218,10 @@ def chat():
         chat_history.append({"type": "assistant", "content": ai_response})
         session['chat_history'] = chat_history
         
-        print(f"DEBUG: Returning response. questions_asked: {session.get('questions_asked', 0)}, finalization_done: {session.get('finalization_done', False)}")
-        
         return jsonify({
             "response": ai_response,
             "info_cards": info_cards,
-            "models": models,
-            "debug_info": {
-                "questions_asked": session.get('questions_asked', 0),
-                "finalization_phase": session.get('finalization_done', False)
-            }
+            "models": models
         })
 
     except Exception as e:

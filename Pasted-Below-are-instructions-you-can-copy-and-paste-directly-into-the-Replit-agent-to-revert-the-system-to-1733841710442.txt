@@ -1,0 +1,49 @@
+Below are instructions you can copy and paste directly into the Replit agent to revert the system to a simpler state—removing all the constraints, question counting, and step-by-step logic we tried to enforce. This will return the AI to a more “free” mode, similar to how it behaved before we added all these restrictions.
+
+Instructions for Replit Agent:
+	1.	Remove the Complex System Prompt and Return to a Simple One:
+In prompts/system_prompt.txt, revert to something minimal. For example, just have:
+
+You are a dental AI assistant. Respond helpfully to the user's questions and provide advice. You may ask clarifying questions if needed, but there are no strict limits. Just be helpful, empathetic, and provide suggestions when appropriate.
+
+This removes all the instructions about 3 questions, finalization, or info cards. Just a simple prompt.
+
+	2.	Remove the Code That Tracks Questions and Forces Finalization:
+In app.py or wherever you implemented logic for counting assistant questions, question limits, and finalization calls, remove all that code. Specifically:
+	•	Remove any calls to count_assistant_questions(chat_history).
+	•	Remove any insertion of system messages that warn about how many questions have been asked.
+	•	Remove or comment out any code that checks if questions_asked >= 3 and tries to finalize.
+	•	Remove any code that attempts a two-step process (Q&A phase and separate finalization call).
+Essentially, return to the original logic you had where you simply:
+	•	Read user input.
+	•	Append it to messages.
+	•	Call openai.ChatCompletion.create(...) once.
+	•	Return the model’s response directly.
+	3.	Remove Patient Summary and Condition Logic (If Desired):
+If you added logic that updates patient_summary or appends conditions and appointment types as system messages every turn, remove that too. You can keep patient_summary if you find it helpful, but if it’s causing confusion, remove it entirely. Just return to a simple flow:
+	•	User sends message.
+	•	Add their message to messages.
+	•	Call the AI.
+	•	Return the AI’s response to the user.
+	4.	Set the Temperature and Model to a Comfortable Default:
+For more natural responses, you can keep model="gpt-4" (or gpt-3.5-turbo) and maybe set temperature=0.7 for a balance of compliance and creativity:
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=messages,
+    temperature=0.7
+)
+
+Or whatever settings you used originally.
+
+	5.	Test:
+After removing all the constraints and logic, run the application again and test a conversation. The AI should now behave more freely, ask and answer questions without the complicated constraints we tried to implement.
+
+Summary:
+	•	Clear out all the extra logic about counting questions and finalization.
+	•	Revert the system prompt to something simple and original.
+	•	Remove patient summary or condition summaries if they’re causing issues.
+	•	Keep it basic: user → assistant → user → assistant with no extra system messages forcing behavior.
+
+Copy and Paste:
+Just copy these instructions into the Replit agent, and it should remove the added complexity and restore the earlier, more open-ended AI behavior.
