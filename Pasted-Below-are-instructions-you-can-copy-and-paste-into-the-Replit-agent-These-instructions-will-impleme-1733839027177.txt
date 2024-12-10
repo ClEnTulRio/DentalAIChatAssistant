@@ -1,0 +1,90 @@
+Below are instructions you can copy and paste into the Replit agent. These instructions will implement the dynamic summary approach, ensuring the AI does not repeatedly ask for information already provided by the user and guiding it to finalize after 3 questions.
+
+Instructions for Replit Agent:
+	1.	Update the System Prompt File (prompts/system_prompt.txt):
+Replace the current content with the following:
+
+You are a dental AI assistant.
+
+Process:
+- On each turn before you respond, you will receive a system message summarizing what is known about the patient's symptoms so far.
+- Do NOT ask about details already listed in that summary.
+- You can ask up to 3 clarifying questions total to gather more information.
+- After the user answers your 3rd question, do not ask any more questions.
+- At that point, you must:
+  1. Select the most likely condition from the conditions list.
+  2. If uncertain, choose the fallback checkup condition.
+  3. Recommend the corresponding appointment type.
+  4. If the condition has `info_card_id`, provide the link: "For more information: https://<your-domain>/card?id=INFO_CARD_ID&lang=en"
+  5. Conclude with: "It seems like you need an appointment for <appointment type>. Here are all available times..."
+
+Rules:
+- Never ask more than 3 questions total.
+- If a system message says you have reached 3 questions, finalize immediately.
+- Do not repeat questions or ask for info already provided in the summary.
+- Be concise, empathetic, and follow these steps strictly.
+
+Replace <your-domain> with your actual domain or Replit URL.
+
+	2.	Maintain a Running Summary in Code:
+In app.py (or your main backend file):
+	•	Create a variable patient_summary (a string) that will accumulate details as the user provides them.
+	•	Each time the user sends a message, parse it for new info (you can start simple: if they mention “red”, store color: red, if they mention “cheek”, store location: cheek).
+	•	Update patient_summary accordingly. For example:
+
+patient_summary = "So far, the patient said: "
+# parse user message and add details, e.g.:
+# if "red" in user_message.lower(): patient_summary += "Color: red. "
+# if "cheek" in user_message.lower(): patient_summary += "Location: cheek area. "
+# ... and so forth.
+
+
+This doesn’t have to be perfect NLP—just a few heuristic rules for now.
+
+	3.	Insert the Summary as a System Message Before Calling the LLM:
+Before you call openai.ChatCompletion.create, do something like:
+
+messages.append({"role": "system", "content": f"Current known info: {patient_summary}"})
+
+This ensures that on every turn, the assistant sees the updated summary of known info.
+
+	4.	Count Questions and Insert Control System Messages:
+As before, count how many questions the assistant asked:
+
+assistant_questions = sum(1 for m in messages if m['role'] == 'assistant' and '?' in m['content'])
+
+After adding the summary system message and before calling the LLM:
+	•	If assistant_questions < 3:
+
+messages.append({"role": "system", "content": f"You have asked {assistant_questions} questions total. You may ask {3 - assistant_questions} more question(s). Remember to finalize after 3 questions."})
+
+
+	•	Else (already asked 3 questions):
+
+messages.append({"role":"system","content":"You have asked 3 questions total. FINALIZE NOW. Do NOT ask another question. Just pick condition, recommend appointment, info card link if any, and say: 'It seems like you need...'."})
+
+
+	5.	API Call with Deterministic Settings:
+Ensure:
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=messages,
+    temperature=0.0,
+    top_p=1,
+    frequency_penalty=0,
+    presence_penalty=0
+)
+
+
+	6.	Testing:
+Start a conversation. The assistant should:
+	•	See the summary system message each turn.
+	•	Not ask about already mentioned details.
+	•	Stop after 3 questions and finalize.
+	7.	If Still Not Perfect:
+	•	Add stronger wording in the system prompt:
+“If you fail to finalize after 3 questions or ask for info already in the summary, you are breaking the rules.”
+	•	Add multiple example scenarios in the system prompt showing correct behavior.
+
+Copy and paste the entire instructions above into the Replit agent so it can implement these changes. Then test again to ensure the AI no longer repeats questions and finalizes properly after 3 questions.

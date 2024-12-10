@@ -77,11 +77,69 @@ def get_chat_history():
     if 'chat_history' not in session:
         session['chat_history'] = []
         session['questions_asked'] = 0
+        session['patient_summary'] = "No symptoms described yet."
     return session['chat_history']
 
 def count_assistant_questions(messages):
     """Count how many questions the assistant has asked."""
     return sum(1 for m in messages if m['role'] == 'assistant' and '?' in m['content'])
+
+def update_patient_summary(message):
+    """Update the patient summary based on the user's message."""
+    summary = session.get('patient_summary', "")
+    
+    # Define keywords to look for
+    symptoms = {
+        'pain': 'reports pain',
+        'ache': 'reports aching',
+        'hurt': 'reports pain',
+        'sensitive': 'reports sensitivity',
+        'swollen': 'reports swelling',
+        'bleeding': 'reports bleeding',
+        'red': 'reports redness',
+        'loose': 'reports looseness',
+        'broken': 'reports broken/damaged tooth',
+        'chip': 'reports chipped tooth',
+        'crack': 'reports cracked tooth'
+    }
+    
+    # Define locations
+    locations = {
+        'tooth': 'in tooth',
+        'teeth': 'in teeth',
+        'gum': 'in gums',
+        'jaw': 'in jaw',
+        'mouth': 'in mouth',
+        'face': 'in face'
+    }
+    
+    # Parse message for symptoms and locations
+    message_lower = message.lower()
+    detected_symptoms = []
+    for keyword, description in symptoms.items():
+        if keyword in message_lower:
+            detected_symptoms.append(description)
+    
+    detected_locations = []
+    for keyword, description in locations.items():
+        if keyword in message_lower:
+            detected_locations.append(description)
+    
+    # Combine findings into a summary
+    new_findings = []
+    if detected_symptoms:
+        new_findings.extend(detected_symptoms)
+    if detected_locations:
+        new_findings.extend(detected_locations)
+    
+    if new_findings:
+        if summary == "No symptoms described yet.":
+            summary = ""
+        new_summary = f"{summary} Patient {', '.join(new_findings)}."
+        session['patient_summary'] = new_summary.strip()
+        return new_summary
+    
+    return summary
 
 def detect_placeholders(text):
     # Detect [InfoCard: Name] and [3DModel: Name] patterns
@@ -116,8 +174,17 @@ def chat():
                 "content": msg['content']
             })
             
+        # Update patient summary with new information from user message
+        patient_summary = update_patient_summary(user_message)
+        
         # Add current message
         messages.append({"role": "user", "content": user_message})
+        
+        # Add the current patient summary as context
+        messages.append({
+            "role": "system",
+            "content": f"Current known information: {patient_summary}"
+        })
         
         # Check how many questions have been asked so far
         questions_asked = count_assistant_questions(messages)
@@ -127,14 +194,17 @@ def chat():
             remaining_questions = 3 - questions_asked
             messages.append({
                 "role": "system",
-                "content": f"You have asked {questions_asked} questions so far. You may ask {remaining_questions} more question(s). After that, finalize without asking more questions."
+                "content": f"You have asked {questions_asked} questions so far. You may ask {remaining_questions} more question(s). "
+                          f"DO NOT ask about information already provided in the summary above. "
+                          "After your questions are done, you must finalize without asking more questions."
             })
         else:
             messages.append({
                 "role": "system",
                 "content": "You have asked 3 questions total. NOW FINALIZE. Do NOT ask another question. "
-                          "Just pick condition, recommend appointment type, provide info card link, and say "
-                          "'It seems like you need...'. Breaking this rule is not acceptable."
+                          "Based on the summary above, pick condition, recommend appointment type, "
+                          "provide info card link if available, and say 'It seems like you need...'. "
+                          "Breaking this rule is not acceptable."
             })
 
         # Get response from OpenAI
