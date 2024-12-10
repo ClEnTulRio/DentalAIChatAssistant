@@ -76,7 +76,12 @@ SYSTEM_PROMPT = base_system_prompt + "\n\n" + conditions_summary + "\n" + appoin
 def get_chat_history():
     if 'chat_history' not in session:
         session['chat_history'] = []
+        session['questions_asked'] = 0
     return session['chat_history']
+
+def count_assistant_questions(messages):
+    """Count how many questions the assistant has asked."""
+    return sum(1 for m in messages if m['role'] == 'assistant' and '?' in m['content'])
 
 def detect_placeholders(text):
     # Detect [InfoCard: Name] and [3DModel: Name] patterns
@@ -113,6 +118,16 @@ def chat():
             
         # Add current message
         messages.append({"role": "user", "content": user_message})
+        
+        # Check if we've reached the question limit
+        questions_asked = count_assistant_questions(messages)
+        if questions_asked >= 3:
+            messages.append({
+                "role": "system",
+                "content": "You have asked 3 questions already. Now you MUST choose the most likely condition, "
+                          "recommend the appointment type, and provide the info card link if available. "
+                          "Do not ask more questions."
+            })
 
         # Get response from OpenAI
         response = openai.chat.completions.create(
