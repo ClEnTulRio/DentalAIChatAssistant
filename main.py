@@ -1,6 +1,5 @@
 import os
 import json
-import logging
 
 # Load JSON data files
 with open('data/appointment_types.json') as f:
@@ -54,13 +53,10 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a-default-secret-key")
 
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 # do not change this unless explicitly requested by the user
-# the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-# do not change this unless explicitly requested by the user
 OPENAI_MODEL = "gpt-4o"
 
 # Initialize OpenAI client
 openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-logging.basicConfig(level=logging.DEBUG)
 
 # Build summaries
 conditions_summary = "Conditions:\n"
@@ -189,41 +185,30 @@ Do not ask questions now. Just finalize."""})
     return response.choices[0].message.content
 
 @app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST'])
 def chat():
     try:
         user_message = request.json.get('message', '').strip()
         if not user_message:
-            logging.warning("Empty message received")
             return jsonify({'error': 'Empty message'}), 400
-
-        logging.info(f"Received message: {user_message}")
 
         # Get chat history and update patient summary
         chat_history = get_chat_history()
         patient_summary = update_patient_summary(user_message)
-        logging.debug(f"Updated patient summary: {patient_summary}")
         
         # Get messages with context
         messages = get_messages_for_openai()
         messages.append({"role": "user", "content": user_message})
         
-        logging.debug(f"Sending messages to OpenAI: {messages}")
-        
         # Get response from OpenAI
-        try:
-            response = openai.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=messages,
-                max_tokens=250,
-                temperature=0.7  # More natural responses
-            )
-            
-            ai_response = response.choices[0].message.content
-            logging.info(f"Received AI response: {ai_response}")
-            
-        except Exception as api_error:
-            logging.error(f"OpenAI API error: {str(api_error)}")
-            return jsonify({'error': 'Failed to get AI response'}), 500
+        response = openai.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=messages,
+            max_tokens=250,
+            temperature=0.7  # More natural responses
+        )
+        
+        ai_response = response.choices[0].message.content
         
         # Detect any placeholders in the response
         info_cards, models = detect_placeholders(ai_response)
@@ -240,14 +225,7 @@ def chat():
         })
 
     except Exception as e:
-        logging.error(f"General error in chat endpoint: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    try:
-        # Running on port 5000 for Replit compatibility
-        logging.info("Starting Flask server on port 5000")
-        app.run(host='0.0.0.0', port=5000, debug=True)
-    except Exception as e:
-        logging.error(f"Failed to start Flask server: {str(e)}")
-        raise
+    app.run(host='0.0.0.0', port=5000)

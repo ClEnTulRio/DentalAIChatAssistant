@@ -13,10 +13,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
+args = "web_server"
 
 [[workflows.workflow]]
-name = "Start application"
+name = "web_server"
 author = "agent"
 
 [workflows.workflow.metadata]
