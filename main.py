@@ -53,6 +53,8 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a-default-secret-key")
 
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 # do not change this unless explicitly requested by the user
+# the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+# do not change this unless explicitly requested by the user
 OPENAI_MODEL = "gpt-4o"
 
 # Initialize OpenAI client
@@ -184,7 +186,6 @@ Do not ask questions now. Just finalize."""})
     
     return response.choices[0].message.content
 
-@app.route('/chat', methods=['POST'])
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
