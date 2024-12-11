@@ -245,10 +245,9 @@ def chat():
 
 if __name__ == '__main__':
     try:
-        # Make sure to run on port 5000 for Replit
-        port = int(os.environ.get('PORT', 5000))
-        logging.info(f"Starting Flask server on port {port}")
-        app.run(host='0.0.0.0', port=port, debug=True)
+        # Running on port 5000 for Replit compatibility
+        logging.info("Starting Flask server on port 5000")
+        app.run(host='0.0.0.0', port=5000, debug=True)
     except Exception as e:
         logging.error(f"Failed to start Flask server: {str(e)}")
         raise
