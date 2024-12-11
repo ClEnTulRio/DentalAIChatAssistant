@@ -244,6 +244,11 @@ def chat():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Make sure to run on port 5000 for Replit
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    try:
+        # Make sure to run on port 5000 for Replit
+        port = int(os.environ.get('PORT', 5000))
+        logging.info(f"Starting Flask server on port {port}")
+        app.run(host='0.0.0.0', port=port, debug=True)
+    except Exception as e:
+        logging.error(f"Failed to start Flask server: {str(e)}")
+        raise
