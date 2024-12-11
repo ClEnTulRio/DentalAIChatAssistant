@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 
 # Load JSON data files
 with open('data/appointment_types.json') as f:
@@ -59,6 +60,7 @@ OPENAI_MODEL = "gpt-4o"
 
 # Initialize OpenAI client
 openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+logging.basicConfig(level=logging.DEBUG)
 
 # Build summaries
 conditions_summary = "Conditions:\n"
@@ -191,25 +193,37 @@ def chat():
     try:
         user_message = request.json.get('message', '').strip()
         if not user_message:
+            logging.warning("Empty message received")
             return jsonify({'error': 'Empty message'}), 400
+
+        logging.info(f"Received message: {user_message}")
 
         # Get chat history and update patient summary
         chat_history = get_chat_history()
         patient_summary = update_patient_summary(user_message)
+        logging.debug(f"Updated patient summary: {patient_summary}")
         
         # Get messages with context
         messages = get_messages_for_openai()
         messages.append({"role": "user", "content": user_message})
         
-        # Get response from OpenAI
-        response = openai.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=messages,
-            max_tokens=250,
-            temperature=0.7  # More natural responses
-        )
+        logging.debug(f"Sending messages to OpenAI: {messages}")
         
-        ai_response = response.choices[0].message.content
+        # Get response from OpenAI
+        try:
+            response = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=250,
+                temperature=0.7  # More natural responses
+            )
+            
+            ai_response = response.choices[0].message.content
+            logging.info(f"Received AI response: {ai_response}")
+            
+        except Exception as api_error:
+            logging.error(f"OpenAI API error: {str(api_error)}")
+            return jsonify({'error': 'Failed to get AI response'}), 500
         
         # Detect any placeholders in the response
         info_cards, models = detect_placeholders(ai_response)
@@ -226,6 +240,7 @@ def chat():
         })
 
     except Exception as e:
+        logging.error(f"General error in chat endpoint: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
